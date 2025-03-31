@@ -76,6 +76,8 @@ public class HttpGetGtfsFile extends HttpGetFile {
 	 */
 	public static String getFile(String projectId, String urlStr, String directory) {
 		HttpGetFile getter = new HttpGetGtfsFile(projectId, urlStr, directory);
+    getter.addRequestHeader("User-Agent",
+        "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0)");
 		try {
 			getter.getFile();
 			return getter.getFullFileName();
