@@ -19,6 +19,7 @@ package org.transitclock.core.autoAssigner;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -815,9 +816,34 @@ public class AutoBlockAssigner {
 		// consider that a match 
 		if (matches.size() > 1) {
 			logger.info("Found multiple matches ({}) for vehicleId={}. "
-					+ "Therefore could not auto assign vehicle. {}", 
-					matches.size(), vehicleId, matches);
-			return null;
+					+ "Filtering by time and selecting the best match.",
+					matches.size(), vehicleId);
+
+      // select matches with the lowest time differential
+      int bestAbsDiff = Math.abs(matches.get(0).getTemporalDifference().getTemporalDifference());
+      for (TemporalMatch match : matches) {
+        int diff = Math.abs(match.getTemporalDifference().getTemporalDifference());
+        if (diff < bestAbsDiff) {
+          bestAbsDiff = diff;
+        }
+      }
+
+      final int bestAbsDiffFinal = bestAbsDiff;
+      matches.removeIf(match -> Math.abs(match.getTemporalDifference().getTemporalDifference()) > bestAbsDiffFinal);
+
+      if (matches.size() > 1) {
+        logger.info("Found multiple matches({}) for vehicleId={}, even after filtering by time. "
+        + "Therefore arbitrarily selecting the lowest-service-id match. {}", matches.size(), vehicleId, matches);
+
+        // select the match with the lowest service id
+        matches.sort(Comparator.comparing(
+          match -> match.getTrip().getServiceId(),
+          new NumericStringComparator()
+        ));
+      }
+
+      logger.info("Returning match for vehicleId={}. {}", vehicleId, matches.get(0));
+			return matches.get(0);
 		}
 		
 		// Found a single match so return it
@@ -825,4 +851,17 @@ public class AutoBlockAssigner {
 				vehicleId, matches.get(0));
 		return matches.get(0);
 	}
+
+  private static class NumericStringComparator implements Comparator<String> {
+    @Override
+    public int compare(String s1, String s2) {
+        try {
+            double n1 = Double.parseDouble(s1);
+            double n2 = Double.parseDouble(s2);
+            return Double.compare(n1, n2);
+        } catch (NumberFormatException e) {
+            return s1.compareTo(s2);
+        }
+    }
+  }
 }
